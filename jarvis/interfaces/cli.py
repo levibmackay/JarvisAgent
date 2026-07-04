@@ -1,0 +1,96 @@
+"""Terminal REPL — the first interface to the agent core."""
+
+import sys
+
+import anthropic
+
+from jarvis.core.agent import Agent
+from jarvis.core.config import Settings
+from jarvis.core.llm.claude import ClaudeProvider
+from jarvis.memory.store import MemoryStore
+from jarvis.memory.tools import RecallTool, RememberTool
+from jarvis.security.audit import AuditLog
+from jarvis.security.consent import CliConsent
+from jarvis.security.executor import SafeExecutor
+from jarvis.tools.base import ToolRegistry
+from jarvis.tools.builtin.time import GetTimeTool
+from jarvis.tools.files import EditFileTool, ReadFileTool, WriteFileTool
+from jarvis.tools.github import GitHubTool
+from jarvis.tools.shell import ShellTool
+
+
+def build_agent(settings: Settings, store: MemoryStore | None = None) -> Agent:
+    roots = settings.permitted_roots
+    registry = ToolRegistry()
+    registry.register(GetTimeTool())
+    registry.register(ShellTool(roots, timeout=settings.shell_timeout))
+    registry.register(ReadFileTool(roots))
+    registry.register(WriteFileTool(roots))
+    registry.register(EditFileTool(roots))
+    registry.register(GitHubTool(roots))
+
+    system_prompt = settings.system_prompt
+    on_message = None
+    if store is not None:
+        registry.register(RememberTool(store))
+        registry.register(RecallTool(store))
+        facts = store.recent_facts(settings.seed_facts)
+        if facts:
+            system_prompt += "\n\nKnown facts from previous sessions:\n" + "\n".join(
+                f"- {f}" for f in facts
+            )
+        conversation_id = store.create_conversation()
+        on_message = lambda m: store.add_message(  # noqa: E731
+            conversation_id, m["role"], m["content"]
+        )
+
+    executor = SafeExecutor(registry, CliConsent(), AuditLog(settings.audit_log_path))
+    provider = ClaudeProvider(model=settings.model, max_tokens=settings.max_tokens)
+    return Agent(provider, executor, system_prompt, on_message=on_message)
+
+
+def main() -> int:
+    settings = Settings()
+    store = MemoryStore(settings.db_path)
+    agent = build_agent(settings, store)
+    print(f"Jarvis ({settings.model}) — /clear resets, /exit quits.")
+
+    while True:
+        try:
+            user_input = input("\nyou> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return 0
+
+        if not user_input:
+            continue
+        if user_input in ("/exit", "/quit"):
+            return 0
+        if user_input == "/clear":
+            agent.reset()
+            print("(conversation cleared)")
+            continue
+
+        print("jarvis> ", end="", flush=True)
+        try:
+            agent.run_turn(
+                user_input,
+                on_text=lambda t: print(t, end="", flush=True),
+                on_tool_use=lambda name, params: print(
+                    f"\n[tool: {name} {params}]", file=sys.stderr
+                ),
+            )
+        except anthropic.APIConnectionError:
+            print("\nNetwork error — check your connection and retry.", file=sys.stderr)
+        except anthropic.AuthenticationError:
+            print(
+                "\nNo valid credentials. Set ANTHROPIC_API_KEY or run `ant auth login`.",
+                file=sys.stderr,
+            )
+        except anthropic.APIStatusError as exc:
+            print(f"\nAPI error {exc.status_code}: {exc.message}", file=sys.stderr)
+        print()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
