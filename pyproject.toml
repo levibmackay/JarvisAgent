@@ -9,6 +9,9 @@ dependencies = [
     "pydantic-settings>=2.3",
 ]
 
+[project.optional-dependencies]
+voice = ["sounddevice>=0.4"]
+
 [project.scripts]
 jarvis = "jarvis.interfaces.cli:main"
 

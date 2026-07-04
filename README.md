@@ -19,7 +19,21 @@ uv run jarvis
 - `jarvis/tools/` — plugin protocol (`base.py`); tools: `get_time`, `run_shell`, `read_file`, `write_file`, `edit_file`, `github`, `remember`, `recall`
 - `jarvis/memory/` — SQLite store (`~/.jarvis/jarvis.db`): conversation persistence + long-term facts with FTS5 recall; recent facts are seeded into the system prompt at startup
 - `jarvis/security/` — consent manager, JSONL audit log (`~/.jarvis/audit.jsonl`), path confinement, `SafeExecutor`
-- `jarvis/interfaces/cli.py` — streaming REPL (`/clear`, `/exit`)
+- `jarvis/voice/` — TTS (macOS `say`), STT (whisper.cpp), push-to-talk recorder
+- `jarvis/interfaces/cli.py` — streaming REPL (`/voice`, `/clear`, `/exit`)
+
+## Voice mode
+
+```sh
+pip install 'jarvis[voice]'          # mic capture (sounddevice)
+brew install whisper-cpp             # local speech-to-text
+curl -L --create-dirs -o ~/.jarvis/models/ggml-base.en.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+```
+
+Then type `/voice` in the REPL: Enter starts recording, Enter stops,
+transcription runs locally (audio never leaves the Mac), and the reply is
+spoken aloud. Wake word and barge-in are planned.
 
 ## Security model
 
