@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     audit_log_path: Path = Path("~/.jarvis/audit.jsonl")
     db_path: Path = Path("~/.jarvis/jarvis.db")
     seed_facts: int = 10  # recent facts injected into the system prompt at startup
+    enable_personal_tools: bool = True  # calendar + email (personal data reaches the LLM)
     tts_voice: str | None = None  # macOS voice name; None = system default
     tts_rate: int | None = None  # words per minute
     stt_model_path: Path = Path("~/.jarvis/models/ggml-base.en.bin")

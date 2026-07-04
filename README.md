@@ -16,7 +16,7 @@ uv run jarvis
 - `jarvis/core/agent.py` — turn engine: LLM ↔ tool dispatch loop
 - `jarvis/core/llm/` — provider abstraction (`base.py`) + Claude implementation
 - `jarvis/core/config.py` — typed settings (`JARVIS_*` env vars / `.env`)
-- `jarvis/tools/` — plugin protocol (`base.py`); tools: `get_time`, `run_shell`, `read_file`, `write_file`, `edit_file`, `github`, `remember`, `recall`
+- `jarvis/tools/` — plugin protocol (`base.py`); tools: `get_time`, `run_shell`, `read_file`, `write_file`, `edit_file`, `github`, `remember`, `recall`, plus Calendar.app (`list_events`, `create_event`) and Mail.app (`list_emails`, `read_email`, `send_email`) via AppleScript. Personal-data tools can be disabled with `JARVIS_ENABLE_PERSONAL_TOOLS=false`; `send_email` always requires confirmation.
 - `jarvis/memory/` — SQLite store (`~/.jarvis/jarvis.db`): conversation persistence + long-term facts with FTS5 recall; recent facts are seeded into the system prompt at startup
 - `jarvis/security/` — consent manager, JSONL audit log (`~/.jarvis/audit.jsonl`), path confinement, `SafeExecutor`
 - `jarvis/voice/` — TTS (macOS `say`), STT (whisper.cpp), push-to-talk recorder

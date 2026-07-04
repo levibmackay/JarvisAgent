@@ -14,6 +14,8 @@ from jarvis.security.consent import CliConsent
 from jarvis.security.executor import SafeExecutor
 from jarvis.tools.base import ToolRegistry
 from jarvis.tools.builtin.time import GetTimeTool
+from jarvis.tools.calendar import CreateEventTool, ListEventsTool
+from jarvis.tools.email import ListEmailsTool, ReadEmailTool, SendEmailTool
 from jarvis.tools.files import EditFileTool, ReadFileTool, WriteFileTool
 from jarvis.tools.github import GitHubTool
 from jarvis.tools.shell import ShellTool
@@ -32,6 +34,10 @@ def build_agent(settings: Settings, store: MemoryStore | None = None) -> Agent:
     registry.register(WriteFileTool(roots))
     registry.register(EditFileTool(roots))
     registry.register(GitHubTool(roots))
+    if settings.enable_personal_tools:
+        for tool_cls in (ListEventsTool, CreateEventTool, ListEmailsTool,
+                         ReadEmailTool, SendEmailTool):
+            registry.register(tool_cls())
 
     system_prompt = settings.system_prompt
     on_message = None
