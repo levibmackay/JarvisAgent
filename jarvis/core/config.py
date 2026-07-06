@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     tts_rate: int | None = None  # words per minute
     stt_model_path: Path = Path("~/.jarvis/models/ggml-base.en.bin")
     stt_binary: str = "whisper-cli"
+    server_host: str = "127.0.0.1"  # loopback only; changing this exposes tool execution
+    server_port: int = 8765
+    server_token_path: Path = Path("~/.jarvis/server.token")
+    consent_timeout: float = 300.0  # seconds a turn waits for consent before denying
     system_prompt: str = (
         "You are Jarvis, a personal assistant running on the user's Mac. "
         "Be concise and direct. Use tools when they help answer the request."

@@ -6,6 +6,7 @@ later without touching callers.
 
 import json
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -54,57 +55,66 @@ class MemoryStore:
     def __init__(self, path: Path) -> None:
         path = path.expanduser()
         path.parent.mkdir(parents=True, exist_ok=True)
-        self._db = sqlite3.connect(path)
+        # Shared across server threads (session workers, request handlers);
+        # the lock serializes access, which sqlite requires cross-thread.
+        self._db = sqlite3.connect(path, check_same_thread=False)
+        self._lock = threading.Lock()
         self._db.executescript(_SCHEMA)
         self._db.commit()
 
     # -- conversations ------------------------------------------------
 
     def create_conversation(self) -> int:
-        cur = self._db.execute("INSERT INTO conversations (created_at) VALUES (?)", (_now(),))
-        self._db.commit()
-        return cur.lastrowid  # type: ignore[return-value]
+        with self._lock:
+            cur = self._db.execute("INSERT INTO conversations (created_at) VALUES (?)", (_now(),))
+            self._db.commit()
+            return cur.lastrowid  # type: ignore[return-value]
 
     def add_message(self, conversation_id: int, role: str, content: Any) -> None:
-        self._db.execute(
-            "INSERT INTO messages (conversation_id, role, content, created_at) "
-            "VALUES (?, ?, ?, ?)",
-            (conversation_id, role, json.dumps(_jsonable(content)), _now()),
-        )
-        self._db.commit()
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO messages (conversation_id, role, content, created_at) "
+                "VALUES (?, ?, ?, ?)",
+                (conversation_id, role, json.dumps(_jsonable(content)), _now()),
+            )
+            self._db.commit()
 
     def get_messages(self, conversation_id: int) -> list[dict[str, Any]]:
-        rows = self._db.execute(
-            "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY id",
-            (conversation_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY id",
+                (conversation_id,),
+            ).fetchall()
         return [{"role": role, "content": json.loads(content)} for role, content in rows]
 
     # -- facts ---------------------------------------------------------
 
     def add_fact(self, content: str) -> int:
-        cur = self._db.execute(
-            "INSERT INTO facts (content, created_at) VALUES (?, ?)", (content, _now())
-        )
-        self._db.commit()
-        return cur.lastrowid  # type: ignore[return-value]
+        with self._lock:
+            cur = self._db.execute(
+                "INSERT INTO facts (content, created_at) VALUES (?, ?)", (content, _now())
+            )
+            self._db.commit()
+            return cur.lastrowid  # type: ignore[return-value]
 
     def search_facts(self, query: str, limit: int = 5) -> list[str]:
         # Quote each term so user text can't break FTS5 query syntax.
         terms = " OR ".join(f'"{t}"' for t in query.replace('"', "").split() if t)
         if not terms:
             return []
-        rows = self._db.execute(
-            "SELECT f.content FROM facts_fts JOIN facts f ON f.id = facts_fts.rowid "
-            "WHERE facts_fts MATCH ? ORDER BY rank LIMIT ?",
-            (terms, limit),
-        ).fetchall()
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT f.content FROM facts_fts JOIN facts f ON f.id = facts_fts.rowid "
+                "WHERE facts_fts MATCH ? ORDER BY rank LIMIT ?",
+                (terms, limit),
+            ).fetchall()
         return [content for (content,) in rows]
 
     def recent_facts(self, limit: int = 10) -> list[str]:
-        rows = self._db.execute(
-            "SELECT content FROM facts ORDER BY id DESC LIMIT ?", (limit,)
-        ).fetchall()
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT content FROM facts ORDER BY id DESC LIMIT ?", (limit,)
+            ).fetchall()
         return [content for (content,) in rows]
 
     def close(self) -> None:

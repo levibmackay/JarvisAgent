@@ -10,7 +10,7 @@ from jarvis.core.llm.claude import ClaudeProvider
 from jarvis.memory.store import MemoryStore
 from jarvis.memory.tools import RecallTool, RememberTool
 from jarvis.security.audit import AuditLog
-from jarvis.security.consent import CliConsent
+from jarvis.security.consent import CliConsent, ConsentManager
 from jarvis.security.executor import SafeExecutor
 from jarvis.tools.base import ToolRegistry
 from jarvis.tools.builtin.time import GetTimeTool
@@ -25,7 +25,11 @@ from jarvis.voice.stt import WhisperCppSTT
 from jarvis.voice.tts import MacSayTTS
 
 
-def build_agent(settings: Settings, store: MemoryStore | None = None) -> Agent:
+def build_agent(
+    settings: Settings,
+    store: MemoryStore | None = None,
+    consent: ConsentManager | None = None,
+) -> Agent:
     roots = settings.permitted_roots
     registry = ToolRegistry()
     registry.register(GetTimeTool())
@@ -54,7 +58,7 @@ def build_agent(settings: Settings, store: MemoryStore | None = None) -> Agent:
             conversation_id, m["role"], m["content"]
         )
 
-    executor = SafeExecutor(registry, CliConsent(), AuditLog(settings.audit_log_path))
+    executor = SafeExecutor(registry, consent or CliConsent(), AuditLog(settings.audit_log_path))
     provider = ClaudeProvider(model=settings.model, max_tokens=settings.max_tokens)
     return Agent(provider, executor, system_prompt, on_message=on_message)
 

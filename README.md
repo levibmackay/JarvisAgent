@@ -35,6 +35,21 @@ Then type `/voice` in the REPL: Enter starts recording, Enter stops,
 transcription runs locally (audio never leaves the Mac), and the reply is
 spoken aloud. Wake word and barge-in are planned.
 
+## API server (for the menu bar / iPhone apps)
+
+```sh
+pip install 'jarvis[server]'
+jarvis-server                        # http://127.0.0.1:8765, loopback only
+```
+
+Auth is a bearer token auto-generated at `~/.jarvis/server.token` (0600).
+Endpoints (`/v1`): `POST /sessions`, `POST /sessions/{id}/messages`
+(SSE stream: `text`, `tool_use`, `consent_request`, `done`, `error`),
+`POST /sessions/{id}/consent/{consent_id}` `{"allow": bool}`,
+`DELETE /sessions/{id}`, `GET /health`. One turn per session at a time
+(409 while busy). Consent requests unanswered for `JARVIS_CONSENT_TIMEOUT`
+(default 300s) are denied.
+
 ## Security model
 
 Every tool call is risk-classified per call (`read_only` / `reversible` /
