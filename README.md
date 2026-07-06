@@ -50,6 +50,20 @@ Endpoints (`/v1`): `POST /sessions`, `POST /sessions/{id}/messages`
 (409 while busy). Consent requests unanswered for `JARVIS_CONSENT_TIMEOUT`
 (default 300s) are denied.
 
+## Menu bar app
+
+`apps/macos/JarvisBar` is a SwiftPM package (no Xcode required — CLT is
+enough): `JarvisKit` (API client + SSE parsing, reusable by a future iOS
+app) and the `JarvisBar` MenuBarExtra UI with streaming replies and
+Allow/Deny consent cards.
+
+```sh
+jarvis-server &                       # the app talks to this
+cd apps/macos/JarvisBar
+swift run JarvisBar                   # or: swift build -c release
+swift test                            # JARVIS_INTEGRATION=1 adds a live-server test
+```
+
 ## Security model
 
 Every tool call is risk-classified per call (`read_only` / `reversible` /
