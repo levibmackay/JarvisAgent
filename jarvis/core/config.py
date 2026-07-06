@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     server_port: int = 8765
     server_token_path: Path = Path("~/.jarvis/server.token")
     consent_timeout: float = 300.0  # seconds a turn waits for consent before denying
+    workflows_dir: Path = Path("~/.jarvis/workflows")
+    workflow_poll_interval: float = 30.0  # seconds between scheduler due-checks
+    meetings_dir: Path = Path("~/.jarvis/meetings")
+    meeting_device: str | None = "BlackHole"  # input-name fragment; None = default mic
+    meeting_stt_timeout: float = 1800.0  # long recordings take a while to transcribe
     system_prompt: str = (
         "You are Jarvis, a personal assistant running on the user's Mac. "
         "Be concise and direct. Use tools when they help answer the request."

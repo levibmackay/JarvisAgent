@@ -7,6 +7,8 @@ import anthropic
 from jarvis.core.agent import Agent
 from jarvis.core.config import Settings
 from jarvis.core.llm.claude import ClaudeProvider
+from jarvis.meetings.recorder import MeetingRecorder, resolve_device
+from jarvis.meetings.service import SUMMARY_PROMPT, MeetingService
 from jarvis.memory.store import MemoryStore
 from jarvis.memory.tools import RecallTool, RememberTool
 from jarvis.security.audit import AuditLog
@@ -123,11 +125,43 @@ def voice_loop(agent: Agent, settings: Settings) -> None:
                 print(f"Voice error: {exc}", file=sys.stderr)
 
 
+def meeting_flow(agent: Agent, settings: Settings) -> None:
+    """Record a meeting until Enter, then transcribe locally and summarize."""
+    service = MeetingService(
+        WhisperCppSTT(settings.stt_model_path, settings.stt_binary,
+                      timeout=settings.meeting_stt_timeout),
+        settings.meetings_dir,
+    )
+    try:
+        recorder = MeetingRecorder(resolve_device(settings.meeting_device))
+        meeting_dir = service.new_meeting_dir()
+        recorder.start(service.audio_path(meeting_dir))
+        input("Recording meeting… press Enter to stop.\n")
+        recorder.stop()
+        print("Transcribing (local)…")
+        transcript = service.transcribe(meeting_dir)
+    except VoiceError as exc:
+        print(f"Meeting error: {exc}", file=sys.stderr)
+        return
+    if not transcript:
+        print("(transcript is empty)")
+        return
+    print(f"Transcript saved: {meeting_dir / 'transcript.txt'}\nSummarizing…")
+    print("jarvis> ", end="", flush=True)
+    summary = agent.run_turn(
+        SUMMARY_PROMPT.format(transcript=transcript),
+        on_text=lambda t: print(t, end="", flush=True),
+    )
+    (meeting_dir / "summary.md").write_text(summary)
+    print(f"\nSummary saved: {meeting_dir / 'summary.md'}")
+
+
 def main() -> int:
     settings = Settings()
     store = MemoryStore(settings.db_path)
     agent = build_agent(settings, store)
-    print(f"Jarvis ({settings.model}) — /voice talks, /clear resets, /exit quits.")
+    print(f"Jarvis ({settings.model}) — /voice talks, /meeting records, "
+          "/clear resets, /exit quits.")
 
     while True:
         try:
@@ -146,6 +180,9 @@ def main() -> int:
             continue
         if user_input == "/voice":
             voice_loop(agent, settings)
+            continue
+        if user_input == "/meeting":
+            meeting_flow(agent, settings)
             continue
 
         run_agent_turn(agent, user_input)

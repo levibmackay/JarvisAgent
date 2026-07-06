@@ -8,6 +8,10 @@ from jarvis.core.config import Settings
 from jarvis.interfaces.cli import build_agent
 from jarvis.memory.store import MemoryStore
 from jarvis.server.app import create_app
+from jarvis.workflows.notify import MacNotifier
+from jarvis.workflows.runner import WorkflowRunner
+from jarvis.workflows.scheduler import WorkflowScheduler
+from jarvis.workflows.store import WorkflowStore
 
 
 def load_or_create_token(path: Path) -> str:
@@ -35,14 +39,27 @@ def main() -> int:
 
     token = load_or_create_token(settings.server_token_path)
     store = MemoryStore(settings.db_path)
+    agent_factory = lambda consent: build_agent(settings, store, consent=consent)  # noqa: E731
+
+    workflow_store = WorkflowStore(settings.db_path)
+    scheduler = WorkflowScheduler(
+        settings.workflows_dir,
+        WorkflowRunner(agent_factory, workflow_store, MacNotifier()),
+        workflow_store,
+        poll_interval=settings.workflow_poll_interval,
+    )
+    scheduler.start()
+
     app = create_app(
-        agent_factory=lambda consent: build_agent(settings, store, consent=consent),
+        agent_factory=agent_factory,
         token=token,
         consent_timeout=settings.consent_timeout,
+        workflows=scheduler,
     )
     print(f"Jarvis server on http://{settings.server_host}:{settings.server_port} "
           f"(token: {settings.server_token_path})")
     uvicorn.run(app, host=settings.server_host, port=settings.server_port, log_level="warning")
+    scheduler.stop()
     return 0
 
 

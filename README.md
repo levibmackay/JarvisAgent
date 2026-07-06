@@ -50,6 +50,38 @@ Endpoints (`/v1`): `POST /sessions`, `POST /sessions/{id}/messages`
 (409 while busy). Consent requests unanswered for `JARVIS_CONSENT_TIMEOUT`
 (default 300s) are denied.
 
+## Workflows
+
+Drop JSON files in `~/.jarvis/workflows/` and the server runs them on
+schedule (`every 15m`, `daily 08:00`, or `weekly mon 09:00`):
+
+```json
+{"name": "morning-brief", "schedule": "daily 08:00",
+ "prompt": "Summarize my unread email and today's calendar.",
+ "allow_tools": ["list_emails", "list_events"], "notify": true}
+```
+
+Workflows run unattended, so consent is policy-based: read-only tools run
+freely, reversible tools only if listed in `allow_tools`, destructive
+calls are always denied. Results arrive as macOS notifications and land in
+run history (`GET /v1/workflows/{name}/runs`); trigger manually with
+`POST /v1/workflows/{name}/run`. Edits to the JSON files are picked up on
+the next scheduler poll (30s) — no restart.
+
+## Meetings
+
+```sh
+brew install blackhole-2ch    # system-audio loopback (then create a
+                              # Multi-Output Device in Audio MIDI Setup)
+```
+
+Type `/meeting` in the REPL: records from the device named by
+`JARVIS_MEETING_DEVICE` (default "BlackHole"; set it empty to use the
+mic), Enter stops, transcription runs locally, and the agent writes a
+summary with decisions and action items. Artifacts per meeting in
+`~/.jarvis/meetings/<timestamp>/`: `audio.wav`, `transcript.txt`,
+`summary.md`. Only the transcript text reaches the LLM.
+
 ## Menu bar app
 
 `apps/macos/JarvisBar` is a SwiftPM package (no Xcode required — CLT is

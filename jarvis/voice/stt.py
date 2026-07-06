@@ -9,9 +9,11 @@ _MODEL_URL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-bas
 
 
 class WhisperCppSTT(STT):
-    def __init__(self, model_path: Path, binary: str = "whisper-cli") -> None:
+    def __init__(self, model_path: Path, binary: str = "whisper-cli",
+                 timeout: float = 120.0) -> None:
         self._model = model_path.expanduser()
         self._binary = binary
+        self._timeout = timeout
 
     def transcribe(self, wav_path: Path) -> str:
         if not self._model.is_file():
@@ -30,7 +32,7 @@ class WhisperCppSTT(STT):
                 ],
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=self._timeout,
             )
         except FileNotFoundError:
             raise VoiceError(

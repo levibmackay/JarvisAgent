@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from jarvis.server.session import AgentFactory, SessionBusyError, SessionManager
+from jarvis.workflows.scheduler import WorkflowScheduler
 
 
 class MessageIn(BaseModel):
@@ -29,7 +30,8 @@ def _sse(event: dict[str, Any]) -> str:
     return f"event: {event['type']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n"
 
 
-def create_app(agent_factory: AgentFactory, token: str, consent_timeout: float = 300.0) -> FastAPI:
+def create_app(agent_factory: AgentFactory, token: str, consent_timeout: float = 300.0,
+               workflows: WorkflowScheduler | None = None) -> FastAPI:
     app = FastAPI(title="Jarvis", docs_url=None, redoc_url=None, openapi_url=None)
     sessions = SessionManager(agent_factory, consent_timeout)
 
@@ -81,5 +83,24 @@ def create_app(agent_factory: AgentFactory, token: str, consent_timeout: float =
             raise HTTPException(status_code=404, detail="Unknown session")
         if not session.consent.resolve(consent_id, decision.allow):
             raise HTTPException(status_code=404, detail="Unknown or expired consent request")
+
+    if workflows is not None:
+
+        @app.get("/v1/workflows", dependencies=[auth])
+        def list_workflows() -> dict[str, Any]:
+            return {
+                "workflows": [w.model_dump() for w in workflows.workflows()],
+                "load_error": workflows.last_load_error,
+            }
+
+        @app.post("/v1/workflows/{name}/run", dependencies=[auth], status_code=202)
+        def run_workflow(name: str) -> dict[str, str]:
+            if not workflows.trigger(name):
+                raise HTTPException(status_code=404, detail="Unknown workflow")
+            return {"status": "started"}
+
+        @app.get("/v1/workflows/{name}/runs", dependencies=[auth])
+        def workflow_runs(name: str) -> dict[str, Any]:
+            return {"runs": workflows.store.runs(name)}
 
     return app
