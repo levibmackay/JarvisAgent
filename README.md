@@ -112,3 +112,5 @@ and use a benign binary (`ls`, `pwd`, `date`, …); anything else asks first.
 ```sh
 uv run pytest
 ```
+
+_Last updated: 2026-07-16_
