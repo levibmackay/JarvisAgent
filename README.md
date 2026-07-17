@@ -25,7 +25,7 @@ uv run jarvis
 ## Voice mode
 
 ```sh
-pip install 'jarvis[voice]'          # mic capture (sounddevice)
+uv sync --extra voice                # mic capture (sounddevice)
 brew install whisper-cpp             # local speech-to-text
 curl -L --create-dirs -o ~/.jarvis/models/ggml-base.en.bin \
   https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
@@ -38,7 +38,7 @@ spoken aloud. Wake word and barge-in are planned.
 ## API server (for the menu bar / iPhone apps)
 
 ```sh
-pip install 'jarvis[server]'
+uv sync --extra server
 jarvis-server                        # http://127.0.0.1:8765, loopback only
 ```
 
