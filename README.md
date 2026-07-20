@@ -1,7 +1,7 @@
 # Jarvis
 
 A modular AI assistant for macOS. Currently: a terminal chat agent with a
-plugin tool system, powered by the Claude API.
+plugin tool system, powered by a hosted large-language-model API.
 
 ## Setup
 
@@ -14,7 +14,7 @@ uv run jarvis
 ## Architecture
 
 - `jarvis/core/agent.py` — turn engine: LLM ↔ tool dispatch loop
-- `jarvis/core/llm/` — provider abstraction (`base.py`) + Claude implementation
+- `jarvis/core/llm/` — provider abstraction (`base.py`) + hosted-LLM implementation
 - `jarvis/core/config.py` — typed settings (`JARVIS_*` env vars / `.env`)
 - `jarvis/tools/` — plugin protocol (`base.py`); tools: `get_time`, `run_shell`, `read_file`, `write_file`, `edit_file`, `github`, `remember`, `recall`, plus Calendar.app (`list_events`, `create_event`) and Mail.app (`list_emails`, `read_email`, `send_email`) via AppleScript. Personal-data tools can be disabled with `JARVIS_ENABLE_PERSONAL_TOOLS=false`; `send_email` always requires confirmation.
 - `jarvis/memory/` — SQLite store (`~/.jarvis/jarvis.db`): conversation persistence + long-term facts with FTS5 recall; recent facts are seeded into the system prompt at startup
@@ -113,4 +113,4 @@ and use a benign binary (`ls`, `pwd`, `date`, …); anything else asks first.
 uv run pytest
 ```
 
-_Last updated: 2026-07-16_
+_Last updated: 2026-07-20_
